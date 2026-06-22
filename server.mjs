@@ -29,6 +29,40 @@ loadLocalEnv();
 const port = Number(process.env.PORT || 8766);
 const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
 const pythonBin = process.env.SWEET_SUNDAY_PYTHON || '/Users/jersmini/.hermes/hermes-agent/venv/bin/python3';
+const dashboardUsername = process.env.DASHBOARD_USERNAME || 'sweet';
+const dashboardPassword = process.env.DASHBOARD_PASSWORD || '';
+
+function timingSafeEqualText(a, b) {
+  const aBuffer = Buffer.from(String(a || ''));
+  const bBuffer = Buffer.from(String(b || ''));
+  if (aBuffer.length !== bBuffer.length) return false;
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
+function isAuthorized(req) {
+  if (!dashboardPassword) return false;
+  const header = req.headers.authorization || '';
+  if (!header.startsWith('Basic ')) return false;
+  let decoded = '';
+  try { decoded = Buffer.from(header.slice(6), 'base64').toString('utf8'); }
+  catch { return false; }
+  const splitAt = decoded.indexOf(':');
+  if (splitAt < 0) return false;
+  const username = decoded.slice(0, splitAt);
+  const password = decoded.slice(splitAt + 1);
+  return timingSafeEqualText(username, dashboardUsername) && timingSafeEqualText(password, dashboardPassword);
+}
+
+function requireAuth(req, res) {
+  if (isAuthorized(req)) return true;
+  res.writeHead(401, {
+    'content-type': 'text/plain; charset=utf-8',
+    'www-authenticate': 'Basic realm="Sweet Sunday Dashboard", charset="UTF-8"',
+    'cache-control': 'no-store'
+  });
+  res.end('Authentication required');
+  return false;
+}
 
 function json(res, status, body) {
   const payload = JSON.stringify(body, null, 2);
@@ -707,6 +741,7 @@ async function serveStatic(req, res) {
 }
 
 http.createServer((req, res) => {
+  if (!requireAuth(req, res)) return;
   if (req.url.startsWith('/api/')) return serveApi(req, res);
   return serveStatic(req, res);
 }).listen(port, () => {

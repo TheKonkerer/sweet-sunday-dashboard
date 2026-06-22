@@ -22,3 +22,7 @@ services:
         value: "sc-domain:sweetsunday.store,https://sweetsunday.store/"
       - key: SWEET_SUNDAY_META_JSON
         sync: false
+      - key: DASHBOARD_USERNAME
+        value: "sweet"
+      - key: DASHBOARD_PASSWORD
+        sync: false
