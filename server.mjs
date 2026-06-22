@@ -371,24 +371,34 @@ async function fetchMailchimpData() {
 async function fetchMetaData() {
   try {
     const cred = parseEnvJson('SWEET_SUNDAY_META_JSON');
-    if (!cred?.user_access_token) throw new Error('Missing Meta token JSON');
-    const graph = async (path, token, params = {}) => {
+    const token = cred?.page_access_token || cred?.user_access_token;
+    if (!token) throw new Error('Missing Meta token JSON');
+    const graph = async (path, accessToken, params = {}) => {
       const url = new URL(`https://graph.facebook.com/v20.0/${path}`);
-      Object.entries({ ...params, access_token: token }).forEach(([key, value]) => url.searchParams.set(key, value));
+      Object.entries({ ...params, access_token: accessToken }).forEach(([key, value]) => url.searchParams.set(key, value));
       const res = await fetch(url);
       const payload = await res.json();
       if (!res.ok || payload.error) throw new Error(JSON.stringify(payload.error || payload).slice(0, 500));
       return payload;
     };
-    const accounts = await graph('me/accounts', cred.user_access_token, { fields: 'id,name,access_token,fan_count,talking_about_count,instagram_business_account{id,username,name,followers_count,media_count}' });
-    const page = (accounts.data || []).find(p => /sweet sunday/i.test(p.name || '')) || accounts.data?.[0];
+
+    let page;
+    let pageToken = cred.page_access_token;
+    if (cred.page_id && pageToken) {
+      page = await graph(cred.page_id, pageToken, { fields: 'id,name,fan_count,talking_about_count,instagram_business_account{id,username,name,followers_count,media_count}' });
+    } else if (cred.user_access_token) {
+      const accounts = await graph('me/accounts', cred.user_access_token, { fields: 'id,name,access_token,fan_count,talking_about_count,instagram_business_account{id,username,name,followers_count,media_count}' });
+      page = (accounts.data || []).find(p => /sweet sunday/i.test(p.name || '')) || accounts.data?.[0];
+      pageToken = page?.access_token || cred.user_access_token;
+    }
+
     if (!page) throw new Error('Sweet Sunday Facebook Page not found for this token');
-    const pageToken = page.access_token || cred.page_access_token || cred.user_access_token;
     const ig = page.instagram_business_account || (cred.instagram_business_account ? { id: cred.instagram_business_account } : null);
-    const instagram = ig?.id ? await graph(ig.id, cred.user_access_token, { fields: 'id,username,name,followers_count,media_count' }) : null;
+    const igToken = cred.user_access_token || pageToken;
+    const instagram = ig?.id ? await graph(ig.id, igToken, { fields: 'id,username,name,followers_count,media_count' }) : null;
     let recent_media = [];
     if (ig?.id) {
-      const media = await graph(`${ig.id}/media`, cred.user_access_token, { fields: 'id,caption,media_type,permalink,like_count,comments_count,timestamp', limit: 5 });
+      const media = await graph(`${ig.id}/media`, igToken, { fields: 'id,caption,media_type,permalink,like_count,comments_count,timestamp', limit: 5 });
       recent_media = media.data || [];
     }
     return { ok: true, source: 'Meta Graph API', facebook_page: { id: page.id, name: page.name, fan_count: page.fan_count, talking_about_count: page.talking_about_count }, instagram: instagram ? { ...instagram, recent_media } : null, note: 'Live Meta data loaded from Render env token.' };
