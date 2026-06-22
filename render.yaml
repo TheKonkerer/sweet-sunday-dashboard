@@ -12,3 +12,13 @@ services:
         sync: false
       - key: SHOPIFY_API_VERSION
         value: "2025-01"
+      - key: SWEET_SUNDAY_MAILCHIMP_JSON
+        sync: false
+      - key: SWEET_SUNDAY_GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: SWEET_SUNDAY_GA4_PROPERTY_ID
+        value: "532756755"
+      - key: SWEET_SUNDAY_GSC_SITE_URLS
+        value: "sc-domain:sweetsunday.store,https://sweetsunday.store/"
+      - key: SWEET_SUNDAY_META_JSON
+        sync: false

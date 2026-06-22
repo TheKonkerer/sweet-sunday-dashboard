@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -216,18 +217,198 @@ function buildPrivateDashboardSummary(inputs = {}) {
   };
 }
 
+function parseEnvJson(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (!value) continue;
+    try { return JSON.parse(value); }
+    catch (error) { return { __parseError: `Invalid JSON in ${name}: ${error.message}` }; }
+  }
+  return null;
+}
+
+function b64url(input) {
+  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+async function googleAccessToken(scopes) {
+  const serviceAccount = parseEnvJson('SWEET_SUNDAY_GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_SERVICE_ACCOUNT_JSON');
+  if (!serviceAccount) throw new Error('Missing Google service account JSON env var');
+  if (serviceAccount.__parseError) throw new Error(serviceAccount.__parseError);
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = b64url(JSON.stringify({
+    iss: serviceAccount.client_email,
+    scope: scopes.join(' '),
+    aud: serviceAccount.token_uri || 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  }));
+  const signature = crypto.createSign('RSA-SHA256').update(`${header}.${claim}`).sign(serviceAccount.private_key, 'base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const assertion = `${header}.${claim}.${signature}`;
+  const body = new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion });
+  const res = await fetch(serviceAccount.token_uri || 'https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error_description || payload.error || 'Google token exchange failed');
+  return payload.access_token;
+}
+
+function isoDaysAgo(days) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function gaMetric(row, names, name) {
+  const index = names.indexOf(name);
+  return index >= 0 ? Number(row.metricValues?.[index]?.value || 0) : 0;
+}
+
+function gaDimension(row, names, name) {
+  const index = names.indexOf(name);
+  return index >= 0 ? row.dimensionValues?.[index]?.value || '' : '';
+}
+
+async function ga4RunReport(token, propertyId, body) {
+  const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(payload.error || payload).slice(0, 500));
+  return payload;
+}
+
+async function fetchGa4Data() {
+  try {
+    const propertyId = process.env.SWEET_SUNDAY_GA4_PROPERTY_ID || '532756755';
+    const token = await googleAccessToken(['https://www.googleapis.com/auth/analytics.readonly']);
+    const dateRanges = [{ startDate: isoDaysAgo(8), endDate: isoDaysAgo(1) }];
+    const metrics = ['sessions', 'activeUsers', 'newUsers', 'screenPageViews', 'conversions', 'totalRevenue', 'purchaseRevenue'].map(name => ({ name }));
+    const summaryReport = await ga4RunReport(token, propertyId, { dateRanges, metrics });
+    const metricNames = summaryReport.metricHeaders?.map(h => h.name) || [];
+    const summaryRow = summaryReport.rows?.[0] || {};
+    const summary = [Object.fromEntries(metricNames.map(name => [name, gaMetric(summaryRow, metricNames, name)]))];
+
+    const channelReport = await ga4RunReport(token, propertyId, { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }], metrics: [{ name: 'sessions' }, { name: 'conversions' }, { name: 'totalRevenue' }], orderBys: [{ metric: { metricName: 'sessions' }, desc: true }], limit: 6 });
+    const channelMetricNames = channelReport.metricHeaders?.map(h => h.name) || [];
+    const channelDimNames = channelReport.dimensionHeaders?.map(h => h.name) || [];
+    const traffic_channels = (channelReport.rows || []).map(row => ({
+      sessionDefaultChannelGroup: gaDimension(row, channelDimNames, 'sessionDefaultChannelGroup'),
+      sessions: gaMetric(row, channelMetricNames, 'sessions'),
+      conversions: gaMetric(row, channelMetricNames, 'conversions'),
+      totalRevenue: gaMetric(row, channelMetricNames, 'totalRevenue')
+    }));
+
+    const landingReport = await ga4RunReport(token, propertyId, { dateRanges, dimensions: [{ name: 'landingPagePlusQueryString' }], metrics: [{ name: 'sessions' }, { name: 'conversions' }, { name: 'totalRevenue' }], orderBys: [{ metric: { metricName: 'sessions' }, desc: true }], limit: 5 });
+    const landingMetricNames = landingReport.metricHeaders?.map(h => h.name) || [];
+    const landingDimNames = landingReport.dimensionHeaders?.map(h => h.name) || [];
+    const top_landing_pages = (landingReport.rows || []).map(row => ({
+      landingPagePlusQueryString: gaDimension(row, landingDimNames, 'landingPagePlusQueryString'),
+      sessions: gaMetric(row, landingMetricNames, 'sessions'),
+      conversions: gaMetric(row, landingMetricNames, 'conversions'),
+      totalRevenue: gaMetric(row, landingMetricNames, 'totalRevenue')
+    }));
+
+    return { ok: true, source: 'GA4 Analytics Data API', property_id: propertyId, date_range: 'last 7 complete days ending yesterday', summary, traffic_channels, top_landing_pages };
+  } catch (error) {
+    return { ok: false, source: 'GA4 Analytics Data API', error: String(error.message || error) };
+  }
+}
+
+async function fetchSearchConsoleData() {
+  try {
+    const token = await googleAccessToken(['https://www.googleapis.com/auth/webmasters.readonly']);
+    const sites = (process.env.SWEET_SUNDAY_GSC_SITE_URLS || 'sc-domain:sweetsunday.store,https://sweetsunday.store/').split(',').map(s => s.trim()).filter(Boolean);
+    let lastError = null;
+    for (const siteUrl of sites) {
+      try {
+        const endpoint = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+        const baseBody = { startDate: isoDaysAgo(10), endDate: isoDaysAgo(3), rowLimit: 6 };
+        const queryRes = await fetch(endpoint, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...baseBody, dimensions: ['query'] }) });
+        const queryPayload = await queryRes.json();
+        if (!queryRes.ok) throw new Error(JSON.stringify(queryPayload.error || queryPayload).slice(0, 400));
+        const pageRes = await fetch(endpoint, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...baseBody, dimensions: ['page'], rowLimit: 5 }) });
+        const pagePayload = await pageRes.json();
+        if (!pageRes.ok) throw new Error(JSON.stringify(pagePayload.error || pagePayload).slice(0, 400));
+        return { ok: true, source: 'Google Search Console API', site_url: siteUrl, top_queries: queryPayload.rows || [], top_pages: pagePayload.rows || [] };
+      } catch (error) { lastError = error; }
+    }
+    throw lastError || new Error('No Search Console sites configured');
+  } catch (error) {
+    return { ok: false, source: 'Google Search Console API', error: String(error.message || error) };
+  }
+}
+
+async function fetchMailchimpData() {
+  try {
+    const cred = parseEnvJson('SWEET_SUNDAY_MAILCHIMP_JSON') || { api_key: process.env.SWEET_SUNDAY_MAILCHIMP_API_KEY, server_prefix: process.env.SWEET_SUNDAY_MAILCHIMP_SERVER_PREFIX };
+    if (!cred?.api_key) throw new Error('Missing Mailchimp API key');
+    const server = cred.server_prefix || cred.api_key.split('-').pop();
+    const auth = Buffer.from(`anystring:${cred.api_key}`).toString('base64');
+    const request = async (path, params = {}) => {
+      const url = new URL(`https://${server}.api.mailchimp.com/3.0/${path}`);
+      Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+      const res = await fetch(url, { headers: { authorization: `Basic ${auth}` } });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.detail || payload.title || 'Mailchimp request failed');
+      return payload;
+    };
+    const [ping, lists, campaigns] = await Promise.all([
+      request('ping'),
+      request('lists', { count: 20, fields: 'lists.id,lists.name,lists.stats,total_items' }),
+      request('campaigns', { count: 5, fields: 'campaigns.id,campaigns.subject_line,campaigns.title,campaigns.status,campaigns.emails_sent,campaigns.report_summary,total_items' })
+    ]);
+    const audiences = (lists.lists || []).map(list => ({ id: list.id, name: list.name, member_count: list.stats?.member_count, unsubscribe_count: list.stats?.unsubscribe_count, cleaned_count: list.stats?.cleaned_count, campaign_count: list.stats?.campaign_count, open_rate: list.stats?.open_rate, click_rate: list.stats?.click_rate }));
+    const recent_campaigns = (campaigns.campaigns || []).map(c => ({ subject_line: c.subject_line, title: c.title, status: c.status, emails_sent: c.emails_sent, open_rate: c.report_summary?.open_rate, click_rate: c.report_summary?.click_rate }));
+    return { ok: true, source: 'Mailchimp Marketing API', health_status: ping.health_status, audiences, recent_campaigns };
+  } catch (error) {
+    return { ok: false, source: 'Mailchimp Marketing API', error: String(error.message || error) };
+  }
+}
+
+async function fetchMetaData() {
+  try {
+    const cred = parseEnvJson('SWEET_SUNDAY_META_JSON');
+    if (!cred?.user_access_token) throw new Error('Missing Meta token JSON');
+    const graph = async (path, token, params = {}) => {
+      const url = new URL(`https://graph.facebook.com/v20.0/${path}`);
+      Object.entries({ ...params, access_token: token }).forEach(([key, value]) => url.searchParams.set(key, value));
+      const res = await fetch(url);
+      const payload = await res.json();
+      if (!res.ok || payload.error) throw new Error(JSON.stringify(payload.error || payload).slice(0, 500));
+      return payload;
+    };
+    const accounts = await graph('me/accounts', cred.user_access_token, { fields: 'id,name,access_token,fan_count,talking_about_count,instagram_business_account{id,username,name,followers_count,media_count}' });
+    const page = (accounts.data || []).find(p => /sweet sunday/i.test(p.name || '')) || accounts.data?.[0];
+    if (!page) throw new Error('Sweet Sunday Facebook Page not found for this token');
+    const pageToken = page.access_token || cred.page_access_token || cred.user_access_token;
+    const ig = page.instagram_business_account || (cred.instagram_business_account ? { id: cred.instagram_business_account } : null);
+    const instagram = ig?.id ? await graph(ig.id, cred.user_access_token, { fields: 'id,username,name,followers_count,media_count' }) : null;
+    let recent_media = [];
+    if (ig?.id) {
+      const media = await graph(`${ig.id}/media`, cred.user_access_token, { fields: 'id,caption,media_type,permalink,like_count,comments_count,timestamp', limit: 5 });
+      recent_media = media.data || [];
+    }
+    return { ok: true, source: 'Meta Graph API', facebook_page: { id: page.id, name: page.name, fan_count: page.fan_count, talking_about_count: page.talking_about_count }, instagram: instagram ? { ...instagram, recent_media } : null, note: 'Live Meta data loaded from Render env token.' };
+  } catch (error) {
+    return { ok: false, source: 'Meta Graph API', error: String(error.message || error) };
+  }
+}
+
 async function privateDashboardData({ refresh = false } = {}) {
   const maxAge = 5 * 60 * 1000;
   if (!refresh && privateDataCache.payload && Date.now() - privateDataCache.at < maxAge) return privateDataCache.payload;
   const [ga4, google_search_console, mailchimp, meta_facebook_instagram] = await Promise.all([
-    runJsonScript('/Users/jersmini/.hermes/scripts/sweet_sunday_ga4_fetch.py'),
-    runJsonScript('/Users/jersmini/.hermes/scripts/sweet_sunday_gsc_fetch.py'),
-    runJsonScript('/Users/jersmini/.hermes/scripts/sweet_sunday_mailchimp_fetch.py'),
-    runJsonScript('/Users/jersmini/.hermes/scripts/sweet_sunday_meta_fetch.py')
+    fetchGa4Data(),
+    fetchSearchConsoleData(),
+    fetchMailchimpData(),
+    fetchMetaData()
   ]);
   const inputs = { ga4, google_search_console, mailchimp, meta_facebook_instagram };
   const summary = buildPrivateDashboardSummary(inputs);
-  const response = { ok: true, source: 'monday-report-data-engine', rawOk: Object.values(inputs).some(item => item?.ok), summary };
+  const response = { ok: true, source: 'render-live-data-engine', rawOk: Object.values(inputs).some(item => item?.ok), inputs, summary };
   privateDataCache = { at: Date.now(), payload: response };
   return response;
 }
