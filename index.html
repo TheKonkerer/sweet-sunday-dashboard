@@ -518,15 +518,15 @@
         <a href="#activity"><span class="icon">≡</span><span>Activity</span></a>
       </nav>
       <div class="sidebar-card">
-        <strong>Phase 1 prototype</strong>
-        <span>Mock data only. Built to approve structure, styling, movement indicators, and interactions before APIs are wired.</span>
+        <strong>Live dashboard</strong>
+        <span>Store, Traffic, Email, and SEO use live APIs. Social is hidden until Meta reconnects.</span>
       </div>
     </aside>
 
     <main class="main">
       <section id="alerts" class="section">
         <div class="section-title"><div><h3>Alerts</h3><p>Only the things that need a decision, a check, or a follow-up.</p></div></div>
-        <div class="grid alert-grid"><article class="card alert warning"><div class="card-inner"><h4>Meta token needs long-term setup</h4><p>Temporary tokens can expire. Add durable auth before the live dashboard depends on this source.</p></div></article><article class="card alert down"><div class="card-inner"><h4>Low stock risk</h4><p>Three products are close to projected sell-through based on mock velocity.</p></div></article><article class="card alert"><div class="card-inner"><h4>SEO click opportunity</h4><p>Search impressions rose, but clicks did not. Snippet/title work may help.</p></div></article></div>
+        <div class="grid alert-grid"><article class="card alert warning"><div class="card-inner"><h4>Meta token needs long-term setup</h4><p>Temporary tokens can expire. Add durable auth before the live dashboard depends on this source.</p></div></article><article class="card alert down"><div class="card-inner"><h4>Low stock risk</h4><p>Shopify inventory is checked live; low-stock items are listed in Store alerts.</p></div></article><article class="card alert"><div class="card-inner"><h4>SEO click opportunity</h4><p>Search impressions rose, but clicks did not. Snippet/title work may help.</p></div></article></div>
       </section>
 
       <section id="overview" class="section">
@@ -620,18 +620,13 @@
       </section>
 
       <section id="social" class="section">
-        <div class="section-title"><div><h3>Social</h3><p>Reach is only the start. This should show which actual content creates attention, clicks, and sales.</p></div><button class="pill">Token health: needs long-term fix</button></div>
-        <div class="grid three-col">
-          <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Reach</span><span class="move up">▲ 22%</span></div><div class="value">244</div><div class="sub">More discovery after recent posts.</div><svg class="mini-trend" viewBox="0 0 260 92" aria-label="Social reach trend"><path class="gridline" d="M0 72H260M0 42H260M0 12H260"/><path class="area" d="M0,92 L0,70 C30,68 43,62 69,64 C96,66 105,47 132,50 C160,53 170,31 198,34 C226,36 240,20 260,17 L260,92 Z"/><path class="line" d="M0,70 C30,68 43,62 69,64 C96,66 105,47 132,50 C160,53 170,31 198,34 C226,36 240,20 260,17"/><circle class="dot" cx="260" cy="17" r="5"/></svg><div class="trend-meta"><span>Quiet</span><span>Lift</span></div></div></article>
-          <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Interactions</span><span class="move up">▲ 18%</span></div><div class="value">91</div><div class="sub">Likes, comments, saves, shares.</div><svg class="mini-trend" viewBox="0 0 260 92" aria-label="Interactions trend"><path class="gridline" d="M0 72H260M0 42H260M0 12H260"/><path class="area" d="M0,92 L0,76 C28,70 39,74 63,67 C91,59 103,64 130,56 C157,48 167,42 194,45 C222,48 238,32 260,24 L260,92 Z"/><path class="line" d="M0,76 C28,70 39,74 63,67 C91,59 103,64 130,56 C157,48 167,42 194,45 C222,48 238,32 260,24"/><circle class="dot" cx="260" cy="24" r="5"/></svg><div class="trend-meta"><span>Likes</span><span>Saves + comments</span></div></div></article>
-          <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Social sales traffic</span><span class="move up">▲ 24%</span></div><div class="value">178</div><div class="sub">Visits from Instagram and Facebook.</div><svg class="mini-trend" viewBox="0 0 260 92" aria-label="Social traffic trend"><path class="gridline" d="M0 72H260M0 42H260M0 12H260"/><path class="area" d="M0,92 L0,79 C34,78 43,70 68,72 C95,74 108,61 134,57 C162,53 172,44 200,38 C227,33 241,24 260,20 L260,92 Z"/><path class="line" d="M0,79 C34,78 43,70 68,72 C95,74 108,61 134,57 C162,53 172,44 200,38 C227,33 241,24 260,20"/><circle class="dot" cx="260" cy="20" r="5"/></svg><div class="trend-meta"><span>Views</span><span>Store visits</span></div></div></article>
+        <div class="section-title"><div><h3>Social</h3><p>Instagram/Facebook data only shows when the Meta token is live. No dummy social numbers are displayed.</p></div><button class="pill" data-social-token-status>Checking Meta token</button></div>
+        <div class="grid three-col" data-social-cards>
+          <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Meta token</span><span class="move flat">Checking</span></div><div class="value">—</div><div class="sub">Waiting for the live Meta API check.</div></div></article>
+          <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Instagram</span><span class="move flat">Pending</span></div><div class="value">—</div><div class="sub">Followers/media will appear after Meta reconnects.</div></div></article>
+          <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Social sales traffic</span><span class="move flat">GA4 only</span></div><div class="value">—</div><div class="sub">Store visits from Organic Social remain available in Traffic.</div></div></article>
         </div>
-        <div class="insight-strip"><div class="insight-pill"><strong>31</strong><span>Likes</span></div><div class="insight-pill"><strong>8</strong><span>Comments</span></div><div class="insight-pill"><strong>12</strong><span>Saves</span></div><div class="insight-pill"><strong>19</strong><span>Profile taps</span></div></div>
-        <div class="grid three-col" style="margin-top:16px">
-          <article class="card post-card clickable" data-detail="Phase 2 should link this post to store sessions, product clicks, add-to-cart events, and sales that happened after the post."><div class="card-inner"><div class="panel-title"><div><h4>Giftable sweets photo</h4><span>Top post by saves + comments</span></div><span class="move up">▲ Best</span></div><div class="post-preview"><span>Post preview</span></div><div class="sub">Strong for gift intent. Likely worth repeating with a clearer product link.</div><div class="post-stats"><div class="post-stat"><strong>18</strong><span>Likes</span></div><div class="post-stat"><strong>5</strong><span>Comments</span></div><div class="post-stat"><strong>9</strong><span>Saves</span></div></div></div></article>
-          <article class="card post-card clickable" data-detail="This post would show reach, watch time, profile taps, store clicks, and whether it created a sales spike."><div class="card-inner"><div class="panel-title"><div><h4>Behind-the-scenes reel</h4><span>Best reach per post</span></div><span class="move up">▲ Reach</span></div><div class="post-preview reel"><span>Reel preview</span></div><div class="sub">Good discovery piece. Watch whether traffic turns into product views.</div><div class="post-stats"><div class="post-stat"><strong>11</strong><span>Likes</span></div><div class="post-stat"><strong>2</strong><span>Comments</span></div><div class="post-stat"><strong>6</strong><span>Taps</span></div></div></div></article>
-          <article class="card post-card clickable" data-detail="This would flag content that looks nice but does not create enough interaction or store traffic."><div class="card-inner"><div class="panel-title"><div><h4>Product-only post</h4><span>Lower engagement</span></div><span class="move down">▼ Watch</span></div><div class="post-preview product"><span>Post preview</span></div><div class="sub">May need lifestyle framing, bundle angle, or stronger caption hook.</div><div class="post-stats"><div class="post-stat"><strong>4</strong><span>Likes</span></div><div class="post-stat"><strong>0</strong><span>Comments</span></div><div class="post-stat"><strong>1</strong><span>Tap</span></div></div></div></article>
-        </div>
+        <div class="insight-strip" data-social-note><div class="insight-pill"><strong>Needs token</strong><span>Meta/Facebook/Instagram</span></div></div>
       </section>
 
       <section id="seo" class="section">
@@ -1280,6 +1275,7 @@
         const eyebrow = document.querySelector('.eyebrow');
         if (eyebrow) eyebrow.innerHTML = '<span class="dot"></span> Phase 2: Store, Traffic, Email, and SEO live. Social token needs refresh';
         if (!data) return;
+        applyPrivateOverviewCards(data);
         setHealth('traffic', data.sources?.traffic);
         setHealth('email', data.sources?.email);
         setHealth('seo', data.sources?.seo);
@@ -1316,13 +1312,25 @@
           `);
         }
         const instagram = data.social?.instagram;
-        if (instagram?.followers) {
-          const socialCards = document.querySelector('#social .three-col');
+        const socialCards = document.querySelector('[data-social-cards]') || document.querySelector('#social .three-col');
+        const socialTokenStatus = document.querySelector('[data-social-token-status]');
+        const socialNote = document.querySelector('[data-social-note]');
+        const socialSource = data.sources?.social;
+        if (socialTokenStatus) socialTokenStatus.textContent = socialSource?.ok ? 'Token health: live' : 'Token health: needs refresh';
+        if (instagram?.followers && socialSource?.ok) {
           if (socialCards) socialCards.innerHTML = `
-            <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Reach</span><span class="move ${instagram.reach ? 'up' : 'flat'}">${data.sources?.social?.ok ? 'Live' : 'Token check'}</span></div><div class="value">${escapeHtml(instagram.reach || '0')}</div><div class="sub">Instagram reach from Meta when available.</div></div></article>
+            <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Reach</span><span class="move ${instagram.reach ? 'up' : 'flat'}">Live</span></div><div class="value">${escapeHtml(instagram.reach || '—')}</div><div class="sub">Instagram reach from Meta when available.</div></div></article>
             <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Followers</span><span class="move flat">Live</span></div><div class="value">${escapeHtml(instagram.followers)}</div><div class="sub">@${escapeHtml(instagram.username || 'sweetsundaystore')}</div></div></article>
             <article class="card mini-card trend-card"><div class="card-inner"><div class="kpi-head"><span class="label">Media</span><span class="move flat">Live</span></div><div class="value">${escapeHtml(instagram.mediaCount)}</div><div class="sub">Instagram posts/reels visible to Meta.</div></div></article>
           `;
+          if (socialNote) socialNote.innerHTML = `<div class="insight-pill"><strong>Live</strong><span>Meta/Facebook/Instagram connected</span></div>`;
+        } else {
+          if (socialCards) socialCards.innerHTML = `
+            <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Meta token</span><span class="move down">Needs refresh</span></div><div class="value">—</div><div class="sub">Meta returned: ${escapeHtml((socialSource?.message || 'token expired').slice(0, 120))}</div></div></article>
+            <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Instagram</span><span class="move flat">Not loaded</span></div><div class="value">—</div><div class="sub">No follower, reach, post, like, or comment data is shown until the token is replaced.</div></div></article>
+            <article class="card mini-card"><div class="card-inner"><div class="kpi-head"><span class="label">Social traffic</span><span class="move flat">Use Traffic</span></div><div class="value">${escapeHtml((data.traffic?.channels || []).find(row => /social/i.test(row.label))?.sessions || '0')}</div><div class="sub">GA4 sessions attributed to social channels; this is traffic, not Meta engagement.</div></div></article>
+          `;
+          if (socialNote) socialNote.innerHTML = `<div class="insight-pill"><strong>No dummy data</strong><span>Reconnect Meta for social engagement</span></div>`;
         }
       } catch (_) {}
     }

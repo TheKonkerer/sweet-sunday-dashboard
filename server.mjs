@@ -154,8 +154,8 @@ function buildPrivateDashboardSummary(inputs = {}) {
   const audience = mailchimp.audiences?.[0] || {};
   const impressions = (gsc.top_queries || []).reduce((sum, row) => sum + Number(row.impressions || 0), 0);
   const clicks = (gsc.top_queries || []).reduce((sum, row) => sum + Number(row.clicks || 0), 0);
-  const instagram = meta.instagram || {};
-  const igReach = (instagram.insights || []).find(item => item.metric === 'reach')?.total;
+  const instagram = meta.ok && meta.instagram ? meta.instagram : null;
+  const igReach = (instagram?.insights || []).find(item => item.metric === 'reach')?.total;
 
   return {
     connected: true,
@@ -183,7 +183,7 @@ function buildPrivateDashboardSummary(inputs = {}) {
         sub: gsc.ok ? 'Search Console impressions from top visible queries.' : 'SEO fallback is mocked.'
       },
       social: {
-        value: igReach != null ? numberText(igReach) : numberText(instagram.followers_count || 0),
+        value: igReach != null ? numberText(igReach) : numberText(instagram?.followers_count || 0),
         move: meta.ok ? 'Live' : 'Needs token',
         sub: meta.ok ? 'Instagram reach/followers from Meta.' : 'Meta token needs a durability check.'
       }
